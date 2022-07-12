@@ -1,102 +1,71 @@
+local isexecutorclosure = isexecutorclosure or is_synapse_function
+assert(type(isexecutorclosure) == 'function', "Unsupported exploit.")
+local aimbot, esp, ffa, fov, sens, maxcastdist = true, true, true, 4, .2, 500
 local screengui = game:GetObjects('rbxassetid://10028334985')[1]:Clone()
 local mainframe = screengui:WaitForChild('MainFrame')
 local fovcircle = screengui:WaitForChild('fovCircle')
 local maincontent = mainframe:WaitForChild('Content')
-
--- variables (ui will not uncheck so just a visual bug)
-local aimbot = true
-local esp = true
-local ffa = true
-local fov = 4
-local sens = .2
-local maxcastdist = 500
-
-local target, loadcharacter
-local characters = {}
-local v2 = Vector2.new
-local getregistry = getreg or debug.registry
-local getupvalues = getupvalues or debug.getupvalues
-local islocalclosure = isourclosure or isexecutorclosure or is_synapse_function
-
-local function getvariablefromregistry(parameters)
-	local variable
-	for _, f in pairs(getregistry()) do
-		if typeof(f) == "function" and not islocalclosure(f) then
-			for _, t in pairs(getupvalues(f)) do
-				if type(t) == "table" then
-					local c = 0
-					for _, v in pairs(parameters) do
-						if rawget(t, v) then
-							c += 1
-						end
-					end
-					if c == #parameters then
-						variable = t
-					end
-				end
-			end
-		end
-	end
-	return variable
-end
-
-local placeid = game["PlaceId"]
-local phantomforces, ragdollgrounds, town
-local consoleprint = consoleprint or rconsoleprint
-if table.find({299659045, 292439477, 3568020459}, placeid) then
-	if isconsoleopen and not isconsoleopen() then
-		consoletoggle()
-		consoleprint'\n[aim assistant]: loading phantom forces'
-	end
-	phantomforces = {
-		network = getvariablefromregistry {'add', 'send', 'fetch'},
-		camera = getvariablefromregistry {'currentcamera', 'setfirstpersoncam', 'setspectate'},
-		replication = getvariablefromregistry {'getbodyparts'},
-		hud = getvariablefromregistry {'getplayerpos', 'isplayeralive'},
-		characters = {},
-	}
-	if isconsoleopen and not isconsoleopen() then
-		consoletoggle()
-		consoleprint'\n[aim assistant]: got framework (closing in 5 seconds)'
-	end
-	task.spawn(function()
-		task.wait(5)
-		if isconsoleopen and isconsoleopen() then
-			return consoletoggle()
-		end
-	end)
-	phantomforces.characters = debug.getupvalue(phantomforces.replication.getbodyparts, 1)
-elseif table.find({3161739008}, placeid) then
-	ragdollgrounds = true
-elseif table.find({4991214437}, placeid) then
-	town = true
-end
-
 local aimbotcontrol = maincontent:WaitForChild('AimbotController')
 local espcontrol = maincontent:WaitForChild('ESPController')
 local ffacontrol = maincontent:WaitForChild('FFAController')
 local fovcontrol = maincontent:WaitForChild('FOVController')
 local senscontrol = maincontent:WaitForChild('SensitivityController')
-
-local ffc = game.FindFirstChild
-local ffc2 = game.FindFirstChildWhichIsA
 local camera = {}
-local utility = {}
-local rbxclass = game.IsA
-local rbxservice = game.GetService
-local rbxdescendant = game.IsDescendantOf
+local placeid = game["PlaceId"]
+local players = game:GetService('Players')
+local run = game:GetService('RunService')
+local uis = game:GetService('UserInputService')
+local startergui = game:GetService('StarterGui')
+local localplayer = players.LocalPlayer
+local playermouse = localplayer:GetMouse()
+local raycast, ray = workspace.FindPartOnRayWithIgnoreList, Ray.new
+local colorset = {
+	tlockedcol = Color3.fromRGB(0, 172, 255),
+	tinviewcol = Color3.fromRGB(38, 255, 99),
+	toutviewcol = Color3.fromRGB(255, 37, 40)
+}
+local mousebutton1down = false
+local mousebutton2down = false
+local mousebutton1 = Enum.UserInputType.MouseButton1
+local mousebutton2 = Enum.UserInputType.MouseButton2
+local luaUtils = {}
 
-local players = rbxservice(game, 'Players')
-local run = rbxservice(game, 'RunService')
-local uis = rbxservice(game, 'UserInputService')
-local tweening = rbxservice(game, 'TweenService')
-local startergui = rbxservice(game, 'StarterGui')
+
+do
+	function luaUtils:Scan(content: {string}): {}?
+		for _, closure in pairs(debug.getregistry()) do
+			if type(closure) == 'function' and not isexecutorclosure(closure) then
+				for _, upvalue in pairs(debug.getupvalues(closure)) do
+					if type(upvalue) == 'table' then
+						local i = 0
+						for _, v in pairs(content) do
+							if rawget(upvalue, v) then
+								i += 1
+							end
+						end
+						if i == #content then
+							return upvalue
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
+if table.find({299659045, 292439477, 3568020459}, placeid) then
+	phantomforces = {
+		network = luaUtils:Scan {'add', 'send', 'fetch'},
+		camera = luaUtils:Scan {'currentcamera', 'setfirstpersoncam', 'setspectate'},
+		replication = luaUtils:Scan {'getbodyparts'},
+		hud = luaUtils:Scan {'getplayerpos', 'isplayeralive'},
+		characters = {},
+	}
+	phantomforces.characters = debug.getupvalue(phantomforces.replication.getbodyparts, 1)
+end
 
 startergui:SetCore('SendNotification', {Title = 'Thank You', Text = 'Created by shawnjbragdon', Duration = 10, Button1 = 'OK'})
 startergui:SetCore('SendNotification', {Title = 'Early Build', Text = 'Expect some bugs', Duration = 10, Button1 = 'OK'})
-
-local localplayer = players.LocalPlayer
-local playermouse = localplayer:GetMouse()
 
 coroutine.resume(coroutine.create(function(dragging, dragInput, dragStart, startPos)
 	local function update(input)
@@ -156,32 +125,6 @@ do
 	end)
 end
 
-do
-	local currentcamera = workspace.CurrentCamera
-	camera.wtsp = currentcamera.WorldToScreenPoint
-	camera.currentcamera = currentcamera
-	local function restorecamera()
-		while not typeof(currentcamera) == 'Instance' and not currentcamera:IsA('Camera') do
-			currentcamera = workspace.CurrentCamera
-			camera.currentcamera = currentcamera
-			run.Heartbeat:Wait()
-		end
-		return currentcamera
-	end
-	camera.restorestore = restorecamera
-	local function cameraready()
-		return typeof(currentcamera) == 'Instance' and currentcamera:IsA('Camera')
-	end
-	camera.cameraready = cameraready 
-	workspace:GetPropertyChangedSignal('CurrentCamera'):Connect(restorecamera)
-	function camera.onprerender(time, deltaTime)
-		if cameraready() then
-
-		end
-	end
-	run.Stepped:Connect(camera.onprerender)
-end
-
 local function getenemychars()
 	local l = {}
 	if ffa then
@@ -239,7 +182,7 @@ local function getenemychars()
 				if not character then
 					character = player.Character
 				end
-				local humanoid = character and ffc2(character, "Humanoid")
+				local humanoid = typeof(character) == 'Instance' and FindFirstChildWhichIsA("Humanoid")
 				if phantomforces and lt ~= team then
 					if phantomforces.hud:getplayerhealth(player) > 0 then
 						table.insert(l, character)
@@ -260,29 +203,21 @@ local function getenemychars()
 	return l
 end
 
-local raycast, ray = workspace.FindPartOnRayWithIgnoreList, Ray.new
-local colorset = {
-	tlockedcol = Color3.fromRGB(0, 172, 255),
-	tinviewcol = Color3.fromRGB(38, 255, 99),
-	toutviewcol = Color3.fromRGB(255, 37, 40)
-}
-local white = Color3.new(1, 1, 1)
-
 local function getnearest()
 	local closest_character, closest_screenpoint
 	local distance_fovbased = 2048
 	local position_camera = camera.currentcamera.CFrame.Position
 	for _, character in pairs(getenemychars()) do
-		local humanoid = ffc2(character, 'Humanoid')
-		if phantomforces or typeof(humanoid) ~= 'Instance' or (rbxclass(humanoid, 'Humanoid') and humanoid.Health > 0) then
+		local humanoid = character:FindFirstChildWhichIsA('Humanoid')
+		if phantomforces or typeof(humanoid) ~= 'Instance' or (humanoid:IsA('Humanoid') and humanoid.Health > 0) then
 			local tcol = colorset.toutviewcol
 			local lock = false
 			if character == target then
 				tcol = colorset.tlockedcol
 				lock = true
 			end
-			local head = ffc(character, 'Head')
-			if typeof(head) == 'Instance' and rbxclass(head, 'BasePart') then
+			local head = character:FindFirstChild('Head')
+			if typeof(head) == 'Instance' and head:IsA('BasePart') then
 				local fov_position, on_screen = camera.wtsp(camera.currentcamera, head.Position)
 				local fov_distance = (v2(playermouse.X, playermouse.Y) - v2(fov_position.X, fov_position.Y)).Magnitude
 				if on_screen and fov_distance <= camera.currentcamera.ViewportSize.X / (90 / fov) and fov_distance < distance_fovbased then
@@ -315,41 +250,35 @@ local function getnearest()
 	return closest_character, closest_screenpoint
 end
 
-local mousebutton1down = false
-local mousebutton2down = false
-
-local mousebutton1 = Enum.UserInputType.MouseButton1
-local mousebutton2 = Enum.UserInputType.MouseButton2
-local inputbegan = Enum.UserInputState.Begin
-local inputended = Enum.UserInputState.End
-
 uis.InputBegan:Connect(function(io, gpe)
 	if typeof(uis:GetFocusedTextBox()) == 'Instance' then
 		return
 	end
 	if io.UserInputType == mousebutton1 then
 		mousebutton1down = true
-		print'mousebutton1down'
 	elseif io.UserInputType == mousebutton2 then
 		mousebutton2down = true
-		print'mousebutton2down'
 	end
 end)
 
 uis.InputEnded:Connect(function(io, gpe)
 	if io.UserInputType == mousebutton1 and mousebutton1down then
 		mousebutton1down = false
-		print'mousebutton1up'
 	elseif io.UserInputType == mousebutton2 and mousebutton2down then
 		mousebutton2down = false
-		print'mousebutton2up'
 	end
 end)
 
 if syn then
 	syn.protect_gui(screengui)
 end
-screengui.Parent = rbxservice(game, 'CoreGui')
+local core
+if type(gethui) == 'function' then
+	core = gethui()
+else
+	core = game:GetService("CoreGui")
+end
+screengui.Parent = core
 
 do
 	local player = {}
