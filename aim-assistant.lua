@@ -30,7 +30,6 @@ local mousebutton1 = Enum.UserInputType.MouseButton1
 local mousebutton2 = Enum.UserInputType.MouseButton2
 local luaUtils = {}
 
-
 do
 	function luaUtils:Scan(content: {string}): {}?
 		for _, closure in pairs(debug.getregistry()) do
@@ -64,7 +63,7 @@ if table.find({299659045, 292439477, 3568020459}, placeid) then
 	phantomforces.characters = debug.getupvalue(phantomforces.replication.getbodyparts, 1)
 end
 
-startergui:SetCore('SendNotification', {Title = 'Thank You', Text = 'Created by shawnjbragdon', Duration = 10, Button1 = 'OK'})
+startergui:SetCore('SendNotification', {Title = 'Thank You', Text = 'Created by Paygammy', Duration = 10, Button1 = 'OK'})
 startergui:SetCore('SendNotification', {Title = 'Early Build', Text = 'Expect some bugs', Duration = 10, Button1 = 'OK'})
 
 coroutine.resume(coroutine.create(function(dragging, dragInput, dragStart, startPos)
@@ -313,6 +312,14 @@ do
 			highlight.OutlineColor = colorset.toutviewcol
 			highlight.Parent = screengui
 			characters[highlight] = character
+			local player = players:GetPlayerFromCharacter(character)
+			if typeof(player) == 'Instance' then
+				player:GetPropertyChangedSignal("Team"):Connect(function()
+					highlight.Enabled = (ffa or select(2, pcall(function()
+						return players:GetPlayerFromCharacter(character).Team == localplayer.Team
+					end)) ~= true) and esp
+				end)
+			end
 		end
 	end
 	local function loadplayer(player)
