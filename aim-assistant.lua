@@ -29,9 +29,11 @@ local mousebutton2down = false
 local mousebutton1 = Enum.UserInputType.MouseButton1
 local mousebutton2 = Enum.UserInputType.MouseButton2
 local luaUtils = {}
+local characters = {}
+local loadcharacter, target
 
 do
-	function luaUtils:Scan(content: {string}): {}?
+	function luaUtils:Scan(content --[[: {string}]]) --[[:{}?]]
 		for _, closure in pairs(debug.getregistry()) do
 			if type(closure) == 'function' and not isexecutorclosure(closure) then
 				for _, upvalue in pairs(debug.getupvalues(closure)) do
@@ -181,18 +183,9 @@ local function getenemychars()
 				if not character then
 					character = player.Character
 				end
-				local humanoid = typeof(character) == 'Instance' and FindFirstChildWhichIsA("Humanoid")
+				local humanoid = typeof(character) == 'Instance' and character:FindFirstChildWhichIsA("Humanoid")
 				if phantomforces and lt ~= team then
 					if phantomforces.hud:getplayerhealth(player) > 0 then
-						table.insert(l, character)
-					end
-				elseif humanoid and humanoid.Health > 0 then
-					if ragdollgrounds then
-						local friendly = select(2, pcall(function() return localplayer.Group.Value ~= player.Group.Value end))
-						if friendly == true then
-							table.insert(l, character)
-						end
-					elseif lt ~= team then
 						table.insert(l, character)
 					end
 				end
@@ -205,7 +198,7 @@ end
 local function getnearest()
 	local closest_character, closest_screenpoint
 	local distance_fovbased = 2048
-	local position_camera = camera.currentcamera.CFrame.Position
+	local position_camera = workspace.CurrentCamera.CFrame.Position
 	for _, character in pairs(getenemychars()) do
 		local humanoid = character:FindFirstChildWhichIsA('Humanoid')
 		if phantomforces or typeof(humanoid) ~= 'Instance' or (humanoid:IsA('Humanoid') and humanoid.Health > 0) then
@@ -217,11 +210,11 @@ local function getnearest()
 			end
 			local head = character:FindFirstChild('Head')
 			if typeof(head) == 'Instance' and head:IsA('BasePart') then
-				local fov_position, on_screen = camera.wtsp(camera.currentcamera, head.Position)
-				local fov_distance = (v2(playermouse.X, playermouse.Y) - v2(fov_position.X, fov_position.Y)).Magnitude
-				if on_screen and fov_distance <= camera.currentcamera.ViewportSize.X / (90 / fov) and fov_distance < distance_fovbased then
-					local hit = raycast(workspace, ray(position_camera, (head.Position - position_camera).Unit * 2048), {camera.currentcamera, localplayer.Character})
-					if typeof(hit) == 'Instance' and rbxdescendant(hit, character) then
+				local fov_position, on_screen = workspace.CurrentCamera:WorldToScreenPoint(head.Position)
+				local fov_distance = (Vector2.new(playermouse.X, playermouse.Y) - Vector2.new(fov_position.X, fov_position.Y)).Magnitude
+				if on_screen and fov_distance <= workspace.CurrentCamera.ViewportSize.X / (90 / fov) and fov_distance < distance_fovbased then
+					local hit = raycast(workspace, ray(position_camera, (head.Position - position_camera).Unit * 2048), {workspace.CurrentCamera, localplayer.Character})
+					if typeof(hit) == 'Instance' and hit:IsDescendantOf(character) then
 						distance_fovbased = fov_distance
 						closest_character = character
 						closest_screenpoint = fov_position
@@ -268,7 +261,7 @@ uis.InputEnded:Connect(function(io, gpe)
 	end
 end)
 
-if syn then
+if type(syn) == 'table' and rawget(syn, 'protect_gui') then
 	syn.protect_gui(screengui)
 end
 local core
@@ -295,7 +288,7 @@ do
 		if typeof(character) == 'Instance' then
 			local origchar = character
 			for highlight, character in pairs(characters) do
-				if typeof(character) ~= 'Instance' or not rbxdescendant(character, workspace) then
+				if typeof(character) ~= 'Instance' or not character:IsDescendantOf(workspace) then
 					characters[highlight] = nil
 					highlight:Destroy()
 				elseif character == origchar then
@@ -377,7 +370,7 @@ do
 		fovcircle.Visible = aimbot
 	end)
 	function updatemouse()
-		local vpsize = camera.currentcamera.ViewportSize
+		local vpsize = workspace.CurrentCamera.ViewportSize
 		local x, y = playermouse.X, playermouse.Y
 		fovcircle.Position = UDim2.fromOffset(x, y)
 		fovcircle.Size = UDim2.fromOffset((vpsize.X / (90 / fov)) * 2, (vpsize.X / (90 / fov)) * 2)
@@ -400,7 +393,7 @@ do
 					for i, v in pairs(characters) do
 						if v == c then
 							h = i
-							if typeof(h) == 'Instance' and rbxclass(h, 'Highlight') then
+							if typeof(h) == 'Instance' and h:IsA('Highlight') then
 								h.FillColor = colorset.tlockedcol
 								h.OutlineColor = colorset.tlockedcol
 							end
